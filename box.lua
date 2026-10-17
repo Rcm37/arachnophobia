@@ -1,12 +1,19 @@
+local Settings = require("settings")
 local Box = {}
-local DEFAULT_COLOUR = 0x202830FF
-local coloursByName = {
-    ["mirrorback spider"] = 0xFFFFFFFF,
-    ["pulsing spider"] = 0xFF8800FF,
+local settingsByName = {
+    ["mirrorback spider"] = "mirrorbackColour",
+    ["pulsing spider"] = "pulsingColour",
     -- The instant-kill add is "Acidic spider". "Highly acidic spider"
     -- is a different add and must not receive the same danger colour.
-    ["acidic spider"] = 0xFF0000FF,
+    ["acidic spider"] = "acidicColour",
 }
+
+local function colourForName(name)
+    name = (name or ""):lower()
+    if name:find("araxxor", 1, true) then return Settings.get("araxxorColour") end
+    if name:find("araxxi", 1, true) then return Settings.get("araxxiColour") end
+    return Settings.get(settingsByName[name] or "defaultBoxColour")
+end
 
 -- Eight vertices, six filled faces. Include both windings so the mask also
 -- covers the model if the camera clips inside the box.
@@ -43,7 +50,7 @@ function Box.Draw(bounds, name)
             Vector3.new(x0, y1, z1), Vector3.new(x1, y1, z1),
         },
         shapeTris = triangles,
-        colour = coloursByName[(name or ""):lower()] or DEFAULT_COLOUR,
+        colour = colourForName(name),
         ignoreDepth = true,
     })
 end
