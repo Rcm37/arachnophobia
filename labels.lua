@@ -1,3 +1,4 @@
+local Settings = require("settings")
 local Labels = {}
 local entries = {}
 local parent, interfaceID
@@ -47,14 +48,12 @@ function Labels.Draw(npc, bounds)
         local background = ui.Rectangle.new(root)
         background:SetSize(0, 0, 1, 1)
         background.fill = true
-        background.rgba = 0x202830FF
         background.alpha = 1
         background.clickthrough = true
         background.enabled = false
         local text = ui.Text.new(root)
         text:SetSize(0, 0, 1, 1)
         text.font = id.Font.MUSEO_SANS_15PT_REGULAR
-        text.rgba = 0xFFFFFFFF
         text.alpha = 1
         text.isShadowed = true
         text.alignHorizontal = ui.AlignMode.CENTRE
@@ -62,9 +61,12 @@ function Labels.Draw(npc, bounds)
         text.maxLines = 1
         text.clickthrough = true
         text.enabled = false
-        entry = { root = root, text = text }
+        entry = { root = root, text = text, background = background }
         entries[npc.uid] = entry
     end
+    entry.background.hidden = not Settings.get("showNameBackground")
+    entry.background.rgba = Settings.get("nameBackgroundColour")
+    entry.text.rgba = Settings.get("nameTextColour")
     if entry.name ~= npc.displayName then
         entry.name = npc.displayName
         entry.text.content = npc.displayName
