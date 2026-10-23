@@ -36,7 +36,7 @@ for i = 1, #faces, 3 do
     triangles[#triangles + 1] = a
 end
 
-function Box.Draw(bounds, name)
+function Box.Draw(bounds, name, colour)
     if bounds == nil then return end
     -- Small margin to cover edges of the animated model without z-fighting.
     local padding = 16
@@ -50,7 +50,7 @@ function Box.Draw(bounds, name)
             Vector3.new(x0, y1, z1), Vector3.new(x1, y1, z1),
         },
         shapeTris = triangles,
-        colour = colourForName(name),
+        colour = colour or colourForName(name),
         ignoreDepth = true,
     })
 end

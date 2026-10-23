@@ -10,6 +10,8 @@ Araxxor adds use distinct, fully opaque box colours: **Mirrorback spider — whi
 
 Requires PrettyUI, matching the other plugins in this workspace. Load the `arachnophobia` directory as a development plugin.
 
+**Cover Araxxor Previews** is on by default and independent of fight coverage. It covers only the Araxxi portrait area in instance creation and the Beasts details panel, plus Araxxor portrait sprites in the Beasts list. Covers are removed when changing bosses, disabling the option, or stopping the plugin. The War's Retreat portal attuned to Araxxor is covered with an opaque world box using fixed dark grey. The portal remains clickable.
+
 Use **Box Colours** in Plugin Hub settings to choose separate colours for the default box, Araxxor, Araxxi, Mirrorback spiders, Pulsing spiders, and instant-kill Acidic spiders. Changes save automatically and apply immediately. Boxes always remain fully opaque. Additional NPCs and colour pickers are available in settings; the ribbon panel provides the quick toggles.
 
 Detection is name-based and only covers NPCs. Spider-shaped scenery, items, player transformations, and creatures with unrelated names are not automatically covered.

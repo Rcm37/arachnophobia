@@ -7,6 +7,7 @@ local definitions = {
     nameBackgroundColour = { default = 0x202830FF, type = "number" },
     nameTextColour = { default = 0xFFFFFFFF, type = "number" },
     coverAraxxorFight = { default = false, type = "boolean" },
+    coverAraxxorPreviews = { default = true, type = "boolean" },
     customNPCs = { default = "", type = "string" },
     defaultBoxColour = { default = 0x202830FF, type = "number" },
     araxxorColour = { default = 0x202830FF, type = "number" },

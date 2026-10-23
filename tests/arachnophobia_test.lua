@@ -66,6 +66,7 @@ end
 local spider, guard = npc(1, "Giant Spider"), npc(2, "Guard")
 local npcs = { spider, guard }
 NPCList = { All = function() return npcs end }
+LocList = { ByConfigID = function() return {} end }
 
 local Matcher = require("matcher")
 expect(Matcher.Matches("SPIDER", ""), true, "case-insensitive spiders")
@@ -306,4 +307,3 @@ expect(resetNotifications.customNPCs, "", "reset notifies text field listeners")
 expect(resetNotifications.acidicColour, 0xFF0000FF, "reset notifies colour picker listeners")
 expect(resetNotifications.coverAraxxorFight, false, "reset notifies toggle listeners")
 Settings.Unsubscribe("reset-test")
-print("Arachnophobia: " .. checks .. " checks passed")
