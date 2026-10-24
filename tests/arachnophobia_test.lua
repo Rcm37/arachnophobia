@@ -44,6 +44,7 @@ end
 ui = {
     Interfaces = {
         GetComponent = function(_, componentID)
+            if componentID == id.Component.TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM then return root end
             if componentID == id.Component.TOPLEVEL_V2__ROOT then return root end
             if componentID == id.Component.TOPLEVEL_V2__GAME_AREA then return gameArea end
         end,
@@ -52,7 +53,9 @@ ui = {
     Layer = { new = component }, Rectangle = { new = component }, Text = { new = component },
     AlignMode = { CENTRE = 1 },
 }
-id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2 },
+id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2,
+        TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM = 96796734,
+        SB_OVERLAY__SMALL_SPIDER = 99287050, SB_OVERLAY__BIG_SPIDER = 99287051 },
     Font = { MUSEO_SANS_15PT_REGULAR = 2 } }
 config = { Font = { MUSEO_SANS_15PT_REGULAR = {
     GetStringWidth = function(_, name) return #name * 8 end,
@@ -88,6 +91,7 @@ local Settings = require("settings")
 expect(Settings.get("enabled"), true, "enabled by default")
 expect(Settings.get("showNames"), true, "names on by default")
 expect(Settings.get("coverAraxxorFight"), false, "fight coverage off by default")
+expect(Settings.get("coverUICrawlers"), true, "UI crawlers covered by default")
 expect(pcall(Settings.update, "enabled", "false"), false, "setting types checked")
 expect(pcall(Settings.get, "spiders"), false, "unknown settings rejected")
 
@@ -283,12 +287,36 @@ interfaceLoaded = true
 frame()
 local newest = components[#components]
 expect(newest.content, "Guard", "labels recover after interface reload")
+local originalGetComponent = ui.Interfaces.GetComponent
+ui.Interfaces.GetComponent = function(self, target)
+    if target == id.Component.SB_OVERLAY__SMALL_SPIDER then
+        return { parent = root, visibleGlobal = true, width = 50, height = 40,
+            xyGlobal = { x = 100, y = 100 } }
+    end
+    return originalGetComponent(self, target)
+end
+Settings.update("coverAraxxorPreviews", false)
+frame()
+local crawlerCover = components[#components]
+expect(crawlerCover.fill, true, "crawler covered with fight and previews off")
+Settings.update("coverUICrawlers", false)
+expect(crawlerCover.destroyed, true, "crawler toggle clears cover immediately")
+Settings.update("coverUICrawlers", true)
+frame()
+crawlerCover = components[#components]
+Settings.update("enabled", false)
+expect(crawlerCover.destroyed, true, "disabling plugin clears crawler cover")
+Settings.update("enabled", true)
+frame()
+crawlerCover = components[#components]
 Plugin.Shutdown()
+expect(crawlerCover.destroyed, true, "shutdown clears crawler cover")
 expect(newest.destroyed, true, "shutdown destroys current interface label")
 expect(next(Event.Draw.callbacks), nil, "shutdown unsubscribes")
 Plugin.Shutdown()
 Settings.update("enabled", false)
 Settings.update("coverAraxxorFight", true)
+Settings.update("coverUICrawlers", false)
 Settings.update("showNameBackground", false)
 Settings.update("customNPCs", "Guard")
 Settings.update("acidicColour", 0x112233FF)
@@ -299,6 +327,7 @@ Settings.ResetDefaults()
 local resetSettings = dofile("settings.lua")
 expect(resetSettings.get("enabled"), true, "reset restores enabled default")
 expect(resetSettings.get("coverAraxxorFight"), false, "reset leaves fight coverage off")
+expect(resetSettings.get("coverUICrawlers"), true, "reset restores UI crawler coverage")
 expect(resetSettings.get("showNameBackground"), true, "reset restores name backgrounds")
 expect(resetSettings.get("customNPCs"), "", "reset clears additional NPCs")
 expect(resetSettings.get("acidicColour"), 0xFF0000FF, "reset restores special colour")

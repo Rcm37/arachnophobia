@@ -3,12 +3,14 @@ local Matcher = require("matcher")
 local Box = require("box")
 local Labels = require("labels")
 local Previews = require("previews")
+local Crawlers = require("crawlers")
 local Arachnophobia = {}
 local EVENT_ID = "arachnophobia-draw"
 local active = false
 
 local function onDraw()
     Previews.Draw()
+    Crawlers.Draw()
     Labels.BeginFrame()
     local customNames = Settings.get("customNPCs")
     local showNames = Settings.get("showNames")
@@ -31,6 +33,7 @@ local function setEnabled(enabled)
         Event.Draw.Unsubscribe(EVENT_ID)
         Labels.Clear()
         Previews.Clear()
+        Crawlers.Clear()
     end
     active = enabled
 end
@@ -40,6 +43,7 @@ function Arachnophobia.Start()
         if name == "enabled" then setEnabled(value) end
         if name == "showNames" and not value then Labels.Clear() end
         if name == "coverAraxxorPreviews" and not value then Previews.Clear() end
+        if name == "coverUICrawlers" and not value then Crawlers.Clear() end
     end)
     setEnabled(Settings.get("enabled"))
 end
