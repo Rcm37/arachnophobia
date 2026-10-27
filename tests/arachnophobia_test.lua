@@ -57,6 +57,8 @@ id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2,
         TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM = 96796734,
         SB_OVERLAY__SMALL_SPIDER = 99287050, SB_OVERLAY__BIG_SPIDER = 99287051 },
     Font = { MUSEO_SANS_15PT_REGULAR = 2 } }
+id.Loc = { PVM_HUB_PORTAL_ARAXXI = 114780 }
+id.Sprite = { AIF_BOSS_SLAYER_ARAXXOR = 23969 }
 config = { Font = { MUSEO_SANS_15PT_REGULAR = {
     GetStringWidth = function(_, name) return #name * 8 end,
 } } }
@@ -92,6 +94,11 @@ expect(Settings.get("enabled"), true, "enabled by default")
 expect(Settings.get("showNames"), true, "names on by default")
 expect(Settings.get("coverAraxxorFight"), false, "fight coverage off by default")
 expect(Settings.get("coverUICrawlers"), true, "UI crawlers covered by default")
+expect(Settings.get("useCatPicture"), true, "cat picture on by default")
+Settings.update("useCatPicture", false)
+expect(saved.arachnophobia_useCatPicture, false, "cat picture toggle saved")
+Settings.ResetDefaults()
+expect(Settings.get("useCatPicture"), true, "reset restores cat picture")
 expect(pcall(Settings.update, "enabled", "false"), false, "setting types checked")
 expect(pcall(Settings.get, "spiders"), false, "unknown settings rejected")
 
@@ -257,27 +264,30 @@ frame()
 expect(#liveLabels(), 0, "despawn clears labels")
 npcs = { guard }
 frame()
--- Some layouts expose the game area without a usable top-level root.
+-- Labels stay in the bottom plugin layer even when other UI hosts are available.
 local originalRoot = root
 root = nil
 gameArea = { width = 800, height = 600, interfaceID = 1, xyGlobal = { x = 100, y = 50 } }
 frame()
-local fallbackLabel = liveLabels()[1]
-expect(fallbackLabel.parent.parent, gameArea, "fallback uses game area when root unavailable")
-expect(fallbackLabel.parent.x, math.floor(400 - fallbackLabel.parent.width / 2),
-    "label converts screen x to parent coordinates")
-expect(fallbackLabel.parent.y, 324, "label converts screen y to parent coordinates")
+expect(#liveLabels(), 0, "missing bottom layer suppresses labels without falling back to game area")
 root = { width = 0, height = 0, interfaceID = 1 }
 frame()
-expect(liveLabels()[1], fallbackLabel, "zero-size root does not displace visible game-area label")
+expect(#liveLabels(), 0, "zero-size bottom layer suppresses labels")
 root = originalRoot
 root.visibleGlobal = false
 frame()
-expect(liveLabels()[1], fallbackLabel, "hidden root falls back to game area")
+expect(#liveLabels(), 0, "hidden bottom layer suppresses labels")
 root.visibleGlobal = true
+root.xyGlobal = { x = 100, y = 50 }
 gameArea = nil
 frame()
-expect(fallbackLabel.destroyed, true, "old fallback labels cleaned up when parent changes")
+local bottomLabel = liveLabels()[1]
+expect(bottomLabel.parent.parent, root, "labels belong to bottom plugin layer")
+expect(bottomLabel.parent.x, math.floor(400 - bottomLabel.parent.width / 2),
+    "label converts screen x to bottom-layer coordinates")
+expect(bottomLabel.parent.y, 324, "label converts screen y to bottom-layer coordinates")
+expect(root.frontMoves, nil, "shared bottom layer is never raised")
+root.xyGlobal = nil
 -- Simulate top-level interface teardown and rebuilding after logout.
 interfaceLoaded, root = false, nil
 frame()

@@ -5,11 +5,18 @@ local PREVIEW_COLOUR = 0x202830FF
 local covers = {}
 local parent, interfaceID
 local portraits = {
-    { name = 104267785, image = 104267778, area = 104267776, host = 104267788, sidePadding = 20 }, -- BOSS_INSTANCE: portrait background plus leg clearance
-    { name = 49348619, image = 49348648 }, -- BSLAY_BOSS_INFO: BOSS_MODEL
+    {
+        name = id.Component.BOSS_INSTANCE__BOSSNAME_TEXT,
+        image = id.Component.BOSS_INSTANCE__BOSS_MODEL,
+        area = id.Component.BOSS_INSTANCE__NPC_BACKGROUND,
+        host = id.Component.BOSS_INSTANCE__MAINMODAL_WINDOW,
+        sidePadding = 20, verticalPadding = 5,
+    },
+    { name = id.Component.BSLAY_BOSS_INFO__BOSS_NAME, image = id.Component.BSLAY_BOSS_INFO__BOSS_MODEL },
 }
 
 local function destroyCover(entry)
+    if entry.image then pcall(function() entry.image:Destroy() end) end
     if entry.text then pcall(function() entry.text:Destroy() end) end
     pcall(function() entry.cover:Destroy() end)
 end
@@ -30,7 +37,7 @@ local function componentKey(component)
         component.categoryID or -1, component.dynamicID or -1 }, ":")
 end
 
-local function conceal(component, seen, key, overlayHost, sidePadding)
+local function conceal(component, seen, key, overlayHost, sidePadding, verticalPadding)
     if component == nil or component.visibleGlobal == false then return end
     -- Put the cover in the portrait's own container. A top-level rectangle can
     -- sit behind modal interfaces even after MoveToFront() on that rectangle.
@@ -41,15 +48,20 @@ local function conceal(component, seen, key, overlayHost, sidePadding)
     local x = position.x - (origin and origin.x or 0)
     local y = position.y - (origin and origin.y or 0)
     sidePadding = overlayHost and sidePadding or 0
+    verticalPadding = overlayHost and verticalPadding or 0
     local left, top = math.max(0, x - sidePadding), math.max(0, y)
     local right = math.min(host.width, x + component.width + sidePadding)
-    local bottom = math.min(host.height, y + component.height)
+    local bottom = math.min(host.height, y + component.height + verticalPadding * 2)
     if right <= left or bottom <= top then return end
     local isPortrait = key ~= nil
     key = key or componentKey(component)
     local hostKey = componentKey(host)
+    local picture
+    if isPortrait and Settings.get("useCatPicture") then
+        picture = Plugin.resources.rax_cover
+    end
     local entry = covers[key]
-    if entry and entry.hostKey ~= hostKey then
+    if entry and (entry.hostKey ~= hostKey or entry.picture ~= picture) then
         destroyCover(entry)
         covers[key], entry = nil, nil
     end
@@ -61,8 +73,18 @@ local function conceal(component, seen, key, overlayHost, sidePadding)
         cover.enabled = false
         cover.hidden = false
         cover.alpha = 1
-        covers[key] = { cover = cover, hostKey = hostKey }
-        if isPortrait then
+        covers[key] = { cover = cover, hostKey = hostKey, picture = picture }
+        if isPortrait and picture then
+            local image = ui.Sprite.new(host)
+            image.sprite = picture
+            image.rgba = 0xFFFFFFFF
+            image.alpha = 1
+            image.hidden = false
+            image.isTiling = false
+            image.clickthrough = true
+            image.enabled = false
+            covers[key].image = image
+        elseif isPortrait then
             local text = ui.Text.new(host)
             text.content = "Hidden by Arachnophobia plugin"
             text.font = id.Font.MUSEO_SANS_15PT_REGULAR
@@ -82,6 +104,15 @@ local function conceal(component, seen, key, overlayHost, sidePadding)
     cover:SetPos(left, top)
     cover:SetSize(right - left, bottom - top)
     cover:MoveToFront()
+    local image = covers[key].image
+    if image then
+        -- Fit the bundled 512x334 picture without stretching or cropping it.
+        local scale = math.min((right - left) / 512, (bottom - top) / 334)
+        local width, height = 512 * scale, 334 * scale
+        image:SetSize(width, height)
+        image:SetPos(left + (right - left - width) / 2, top + (bottom - top - height) / 2)
+        image:MoveToFront()
+    end
     local text = covers[key].text
     if text then
         text:SetPos(left + 8, top)
@@ -94,8 +125,8 @@ end
 local function coverBeastsIcons(component, seen)
     if component == nil then return end
     if component.type == ui.ComponentType.SPRITE then
-        -- AIF_BOSS_SLAYER_ARAXXOR: also catches the dynamic Beasts list entry.
-        if component.spriteID == 23969 then
+        -- Also catches the dynamic Beasts list entry.
+        if component.spriteID == id.Sprite.AIF_BOSS_SLAYER_ARAXXOR then
             conceal(component, seen, componentKey(component))
         end
         return
@@ -143,24 +174,25 @@ function Previews.Draw()
             -- behind the model. Add the instance cover to the modal itself so
             -- MoveToFront places it above both portrait branches.
             local host = portrait.host and ui.Interfaces:GetComponent(portrait.host)
-            conceal(target, seen, portrait.image, host, portrait.sidePadding)
+            conceal(target, seen, portrait.image, host, portrait.sidePadding, portrait.verticalPadding)
         end
     end
-    coverBeastsIcons(ui.Interfaces:GetComponent(49348608), seen)
+    coverBeastsIcons(ui.Interfaces:GetComponent(id.Component.BSLAY_BOSS_INFO__MAIN), seen)
     for key, entry in pairs(covers) do
         if not seen[key] then
             destroyCover(entry)
             covers[key] = nil
         end
     end
-    -- Sprite and model covers can overlap. Raise labels after every cover has
-    -- been positioned, so a later Beasts sprite cover cannot obscure the text.
+    -- Sprite and model covers can overlap. Raise their contents after all
+    -- backgrounds so a later Beasts cover cannot obscure a picture or label.
     for _, entry in pairs(covers) do
+        if entry.image then entry.image:MoveToFront() end
         if entry.text then entry.text:MoveToFront() end
     end
 
     -- MultiLoc entities expose their selected destination through configID.
-    for _, portal in ipairs(LocList.ByConfigID(114780)) do -- PVM_HUB_PORTAL_ARAXXI
+    for _, portal in ipairs(LocList.ByConfigID(id.Loc.PVM_HUB_PORTAL_ARAXXI)) do
         if portal.isValid and not portal.isHidden then
             local position = portal.position
             -- LocEntity has no world AABB. Conservatively cover the portal's

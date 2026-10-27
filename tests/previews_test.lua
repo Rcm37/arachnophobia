@@ -5,7 +5,10 @@ local function expect(actual, expected, label)
     checks = checks + 1
 end
 local enabled = true
+Plugin = { resources = {} }
+local useCatPicture = true
 package.loaded.settings = { get = function(name)
+    if name == "useCatPicture" then return useCatPicture end
     if name == "araxxorColour" then error("previews must not read the entity colour") end
     return enabled
 end }
@@ -19,6 +22,15 @@ function ui.Interfaces:GetComponent(key) return components[key] end
 function ui.Interfaces:GetInterface() return {} end
 id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2 } }
 id.Font = { MUSEO_SANS_15PT_REGULAR = 1 }
+id.Component.BOSS_INSTANCE__BOSSNAME_TEXT = 104267785
+id.Component.BOSS_INSTANCE__BOSS_MODEL = 104267778
+id.Component.BOSS_INSTANCE__NPC_BACKGROUND = 104267776
+id.Component.BOSS_INSTANCE__MAINMODAL_WINDOW = 104267788
+id.Component.BSLAY_BOSS_INFO__BOSS_NAME = 49348619
+id.Component.BSLAY_BOSS_INFO__BOSS_MODEL = 49348648
+id.Component.BSLAY_BOSS_INFO__MAIN = 49348608
+id.Sprite = { AIF_BOSS_SLAYER_ARAXXOR = 23969 }
+id.Loc = { PVM_HUB_PORTAL_ARAXXI = 114780 }
 ui.AlignMode = { CENTRE = 1 }
 components[1] = { width = 1000, height = 800, interfaceID = 1, xyGlobal = { x = 10, y = 20 } }
 local rectangles = {}
@@ -158,8 +170,55 @@ Previews.Draw()
 local fullCover = rectangles[#rectangles]
 expect(fullCover.parent, modal, "instance cover draws on modal above portrait branches")
 expect(fullCover.width, 340, "instance cover adds twenty pixels on each side")
-expect(fullCover.height, 300, "cover uses full portrait background height")
+expect(fullCover.height, 310, "instance cover adds ten pixels to background height")
 expect(fullCover.x, 0, "instance cover extends twenty pixels left of background")
-expect(fullCover.y, 40, "full cover converts background y to modal coordinates")
+expect(fullCover.y, 40, "instance cover keeps original top and extends ten pixels below background")
 Previews.Clear()
 Previews.Clear()
+
+-- Bundled resource replaces the fallback message and keeps opaque backing.
+local images = {}
+Plugin = { resources = { rax_cover = {} } }
+ui.Sprite = { new = function(host)
+    local image = { parent = host }
+    function image:SetPos(x, y) self.x, self.y = x, y end
+    function image:SetSize(width, height) self.width, self.height = width, height end
+    function image:MoveToFront() self.front = true end
+    function image:Destroy() self.destroyed = true end
+    images[#images+1] = image
+    return image
+end }
+local textCount = #texts
+Previews.Draw()
+expect(#images, 1, "active portrait uses bundled image")
+expect(#texts, textCount, "image replaces cover message")
+local image = images[1]
+expect(image.sprite, Plugin.resources.rax_cover, "image uses supplied PNG resource")
+expect(image.clickthrough, true, "image passes clicks through")
+expect(image.enabled, false, "image ignores input")
+expect(image.rgba, 0xFFFFFFFF, "image retains original colours")
+expect(image.width, 340, "image fits padded portrait width")
+expect(math.abs(image.height / image.width - 334 / 512) < 0.00001, true, "image preserves aspect ratio")
+expect(image.y > 40, true, "image centred vertically over backing")
+expect(rectangles[#rectangles].rgba, 0x202830FF, "image retains opaque backing")
+Previews.Draw()
+expect(#images, 1, "image reused across frames")
+useCatPicture = false
+Previews.Draw()
+expect(image.destroyed, true, "turning picture off removes image immediately")
+expect(texts[#texts].content, "Hidden by Arachnophobia plugin", "picture off restores text cover")
+local fallbackText = texts[#texts]
+useCatPicture = true
+Previews.Draw()
+expect(fallbackText.destroyed, true, "turning picture on removes fallback text")
+expect(#images, 2, "turning picture on recreates image")
+image = images[#images]
+enabled = false
+Previews.Draw()
+expect(image.destroyed, true, "disabling previews removes image")
+enabled = true
+Previews.Draw()
+local recreated = images[#images]
+Previews.Clear()
+expect(recreated.destroyed, true, "cleanup removes image")
+print("Arachnophobia previews: covers, bundled image, layout and cleanup passed")

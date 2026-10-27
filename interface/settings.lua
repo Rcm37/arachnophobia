@@ -28,15 +28,23 @@ local function onLayerReady(key, event)
         { text = "Show NPC Names", value = "showNames", selected = Settings.get("showNames") },
         { text = "Cover Araxxor Fight", value = "coverAraxxorFight", selected = Settings.get("coverAraxxorFight") },
         { text = "Cover Araxxor Previews", value = "coverAraxxorPreviews", selected = Settings.get("coverAraxxorPreviews") },
+        { text = "Use Cat Picture", value = "useCatPicture", selected = Settings.get("useCatPicture") },
         { text = "Cover UI Crawlers", value = "coverUICrawlers", selected = Settings.get("coverUICrawlers") },
     }, {
         onChange = function(_, _, name, selected) Settings.update(name, selected) end,
     })
+    for _, item in ipairs(toggles.items) do
+        if item.value == "useCatPicture" then
+            item.row:SetPos(16, item.row.y)
+            item.row:SetSize(-16, item.row.height, 1)
+        end
+    end
     if key == "settings" then
         view:AddText("Covers spiders with opaque boxes. Click through boxes and labels to interact normally.")
         view:AddText("Cover Araxxor Fight is off by default. Enable it to cover Araxxor, Araxxi, araxytes, and all seven fight-specific spider types. When off, these NPCs stay visible, even if listed under Additional NPCs.")
         view:AddText("Default colours: mirrorback white, pulsing orange, and acidic (instant-kill) bright red. Customise box colours below.")
         view:AddText("Cover Araxxor Previews hides the Araxxor/Araxxi portraits in instance creation and Beasts, and covers the attuned Araxxor portal at War's Retreat. This works independently of fight coverage.")
+        view:AddText("Use Cat Picture displays the cat image on portrait covers. Turn it off to use the text cover instead.")
         view:AddText("Cover UI Crawlers follows the small and big spider overlay components with clickthrough boxes. This is on by default and independent of fight and preview coverage.")
     end
     local field, nameToggles

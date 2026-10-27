@@ -12,10 +12,10 @@ function Labels.Clear()
 end
 
 function Labels.BeginFrame()
-    local current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__ROOT)
+    local current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM)
     if current == nil or current.width <= 0 or current.height <= 0
         or current.visibleGlobal == false then
-        current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__GAME_AREA)
+        current = nil
     end
     if current ~= parent then
         Labels.Clear()
@@ -32,7 +32,7 @@ function Labels.Draw(npc, bounds)
     ))
     if position == nil then return end
     -- Projections use screen coordinates; UI positions are relative to the
-    -- parent, which may be an inset game area rather than the full window.
+    -- plugin layer, which may be offset from the full window.
     local origin = parent.xyGlobal
     local x = position.x - (origin and origin.x or 0)
     local y = position.y - (origin and origin.y or 0)
@@ -78,8 +78,8 @@ function Labels.Draw(npc, bounds)
         math.floor(math.max(0, math.min(x - width / 2, parent.width - width))),
         math.floor(math.max(0, math.min(y - HEIGHT, parent.height - HEIGHT)))
     )
-    -- Sending these to the back puts them behind the game-area component.
-    -- Bring them above the viewport; all children remain clickthrough.
+    -- Raise only our child within the bottom plugin layer, preserving the
+    -- client's ordering relative to built-in UI, just like crawler covers.
     entry.root:MoveToFront()
     entry.seen = true
 end
