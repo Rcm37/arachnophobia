@@ -44,6 +44,7 @@ end
 ui = {
     Interfaces = {
         GetComponent = function(_, componentID)
+            if componentID == id.Component.TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM then return root end
             if componentID == id.Component.TOPLEVEL_V2__ROOT then return root end
             if componentID == id.Component.TOPLEVEL_V2__GAME_AREA then return gameArea end
         end,
@@ -52,8 +53,12 @@ ui = {
     Layer = { new = component }, Rectangle = { new = component }, Text = { new = component },
     AlignMode = { CENTRE = 1 },
 }
-id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2 },
+id = { Component = { TOPLEVEL_V2__ROOT = 1, TOPLEVEL_V2__GAME_AREA = 2,
+        TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM = 96796734,
+        SB_OVERLAY__SMALL_SPIDER = 99287050, SB_OVERLAY__BIG_SPIDER = 99287051 },
     Font = { MUSEO_SANS_15PT_REGULAR = 2 } }
+id.Loc = { PVM_HUB_PORTAL_ARAXXI = 114780 }
+id.Sprite = { AIF_BOSS_SLAYER_ARAXXOR = 23969 }
 config = { Font = { MUSEO_SANS_15PT_REGULAR = {
     GetStringWidth = function(_, name) return #name * 8 end,
 } } }
@@ -66,6 +71,7 @@ end
 local spider, guard = npc(1, "Giant Spider"), npc(2, "Guard")
 local npcs = { spider, guard }
 NPCList = { All = function() return npcs end }
+LocList = { ByConfigID = function() return {} end }
 
 local Matcher = require("matcher")
 expect(Matcher.Matches("SPIDER", ""), true, "case-insensitive spiders")
@@ -87,6 +93,12 @@ local Settings = require("settings")
 expect(Settings.get("enabled"), true, "enabled by default")
 expect(Settings.get("showNames"), true, "names on by default")
 expect(Settings.get("coverAraxxorFight"), false, "fight coverage off by default")
+expect(Settings.get("coverUICrawlers"), true, "UI crawlers covered by default")
+expect(Settings.get("useCatPicture"), true, "cat picture on by default")
+Settings.update("useCatPicture", false)
+expect(saved.arachnophobia_useCatPicture, false, "cat picture toggle saved")
+Settings.ResetDefaults()
+expect(Settings.get("useCatPicture"), true, "reset restores cat picture")
 expect(pcall(Settings.update, "enabled", "false"), false, "setting types checked")
 expect(pcall(Settings.get, "spiders"), false, "unknown settings rejected")
 
@@ -127,6 +139,29 @@ expect(firstLabel.parent.hidden, false, "label explicitly visible")
 expect(firstLabel.parent.alpha, 1, "label fully opaque")
 frame()
 expect(liveLabels()[1], firstLabel, "reuse label between frames")
+local nameBackground = firstLabel.parent.children[1]
+expect(nameBackground.hidden, false, "name background shown by default")
+expect(nameBackground.rgba, 0x202830FF, "default name background colour")
+expect(firstLabel.rgba, 0xFFFFFFFF, "default name text colour")
+Settings.update("nameBackgroundColour", 0x334455FF)
+Settings.update("nameTextColour", 0xFFEEDDFF)
+Settings.update("showNameBackground", false)
+frame()
+expect(liveLabels()[1], firstLabel, "name styling updates existing labels")
+expect(nameBackground.hidden, true, "background can be removed independently of names")
+expect(nameBackground.rgba, 0x334455FF, "chosen background colour applied")
+expect(firstLabel.rgba, 0xFFEEDDFF, "chosen text colour applied")
+expect(firstLabel.parent.hidden, false, "text remains visible without background")
+local savedNameSettings = dofile("settings.lua")
+expect(savedNameSettings.get("showNameBackground"), false, "background toggle persists")
+expect(savedNameSettings.get("nameBackgroundColour"), 0x334455FF, "background colour persists")
+expect(savedNameSettings.get("nameTextColour"), 0xFFEEDDFF, "text colour persists")
+Settings.update("showNameBackground", true)
+frame()
+expect(nameBackground.hidden, false, "background can be restored")
+expect(nameBackground.rgba, 0x334455FF, "restored background retains chosen colour")
+Settings.update("nameBackgroundColour", 0x202830FF)
+Settings.update("nameTextColour", 0xFFFFFFFF)
 spider.displayName = "Spiderling"
 frame()
 expect(firstLabel.content, "Spiderling", "transformed NPC label refreshed")
@@ -152,6 +187,38 @@ do
     expect(draws[3].colour, 0xFF0000FF, "instant-kill acidic spiders are bright red")
     expect(draws[4].colour, 0x202830FF, "highly acidic spiders do not get instant-kill warning")
     expect(draws[5].colour, 0xFFFFFFFF, "colour matching ignores name case")
+    local customColours = {
+        defaultBoxColour = 0x123456FF,
+        araxxorColour = 0x224466FF,
+        araxxiColour = 0x446688FF,
+        mirrorbackColour = 0x6688AAFF,
+        pulsingColour = 0x88AACCFF,
+        acidicColour = 0xAACCEEFF,
+    }
+    for name, colour in pairs(customColours) do Settings.update(name, colour) end
+    frame()
+    expect(draws[1].colour, customColours.mirrorbackColour, "mirrorback colour updates live")
+    expect(draws[2].colour, customColours.pulsingColour, "pulsing colour updates live")
+    expect(draws[3].colour, customColours.acidicColour, "acidic colour updates live")
+    expect(draws[4].colour, customColours.defaultBoxColour, "other adds use default colour")
+    expect(draws[6].colour, customColours.araxxorColour, "Araxxor has independent colour")
+    expect(draws[7].colour, customColours.araxxiColour, "Araxxi has independent colour")
+    expect(draws[8].colour, customColours.defaultBoxColour, "ordinary spiders use default colour")
+    local reloadedSettings = dofile("settings.lua")
+    for name, colour in pairs(customColours) do
+        expect(reloadedSettings.get(name), colour, name .. " persists between loads")
+    end
+    expect(pcall(Settings.update, "defaultBoxColour", -1), false, "negative colour rejected")
+    expect(pcall(Settings.update, "defaultBoxColour", 0x100000000), false, "out-of-range colour rejected")
+    expect(pcall(Settings.update, "defaultBoxColour", 1.5), false, "fractional colour rejected")
+    Settings.update("defaultBoxColour", 0x12345600)
+    expect(Settings.get("defaultBoxColour"), 0x123456FF, "colour stays opaque")
+    Settings.update("defaultBoxColour", 0x202830FF)
+    Settings.update("araxxorColour", 0x202830FF)
+    Settings.update("araxxiColour", 0x202830FF)
+    Settings.update("mirrorbackColour", 0xFFFFFFFF)
+    Settings.update("pulsingColour", 0xFF8800FF)
+    Settings.update("acidicColour", 0xFF0000FF)
     Settings.update("coverAraxxorFight", false)
     frame()
     expect(#draws, 1, "disabling fight coverage restores bosses and minions")
@@ -197,27 +264,30 @@ frame()
 expect(#liveLabels(), 0, "despawn clears labels")
 npcs = { guard }
 frame()
--- Some layouts expose the game area without a usable top-level root.
+-- Labels stay in the bottom plugin layer even when other UI hosts are available.
 local originalRoot = root
 root = nil
 gameArea = { width = 800, height = 600, interfaceID = 1, xyGlobal = { x = 100, y = 50 } }
 frame()
-local fallbackLabel = liveLabels()[1]
-expect(fallbackLabel.parent.parent, gameArea, "fallback uses game area when root unavailable")
-expect(fallbackLabel.parent.x, math.floor(400 - fallbackLabel.parent.width / 2),
-    "label converts screen x to parent coordinates")
-expect(fallbackLabel.parent.y, 324, "label converts screen y to parent coordinates")
+expect(#liveLabels(), 0, "missing bottom layer suppresses labels without falling back to game area")
 root = { width = 0, height = 0, interfaceID = 1 }
 frame()
-expect(liveLabels()[1], fallbackLabel, "zero-size root does not displace visible game-area label")
+expect(#liveLabels(), 0, "zero-size bottom layer suppresses labels")
 root = originalRoot
 root.visibleGlobal = false
 frame()
-expect(liveLabels()[1], fallbackLabel, "hidden root falls back to game area")
+expect(#liveLabels(), 0, "hidden bottom layer suppresses labels")
 root.visibleGlobal = true
+root.xyGlobal = { x = 100, y = 50 }
 gameArea = nil
 frame()
-expect(fallbackLabel.destroyed, true, "old fallback labels cleaned up when parent changes")
+local bottomLabel = liveLabels()[1]
+expect(bottomLabel.parent.parent, root, "labels belong to bottom plugin layer")
+expect(bottomLabel.parent.x, math.floor(400 - bottomLabel.parent.width / 2),
+    "label converts screen x to bottom-layer coordinates")
+expect(bottomLabel.parent.y, 324, "label converts screen y to bottom-layer coordinates")
+expect(root.frontMoves, nil, "shared bottom layer is never raised")
+root.xyGlobal = nil
 -- Simulate top-level interface teardown and rebuilding after logout.
 interfaceLoaded, root = false, nil
 frame()
@@ -227,8 +297,52 @@ interfaceLoaded = true
 frame()
 local newest = components[#components]
 expect(newest.content, "Guard", "labels recover after interface reload")
+local originalGetComponent = ui.Interfaces.GetComponent
+ui.Interfaces.GetComponent = function(self, target)
+    if target == id.Component.SB_OVERLAY__SMALL_SPIDER then
+        return { parent = root, visibleGlobal = true, width = 50, height = 40,
+            xyGlobal = { x = 100, y = 100 } }
+    end
+    return originalGetComponent(self, target)
+end
+Settings.update("coverAraxxorPreviews", false)
+frame()
+local crawlerCover = components[#components]
+expect(crawlerCover.fill, true, "crawler covered with fight and previews off")
+Settings.update("coverUICrawlers", false)
+expect(crawlerCover.destroyed, true, "crawler toggle clears cover immediately")
+Settings.update("coverUICrawlers", true)
+frame()
+crawlerCover = components[#components]
+Settings.update("enabled", false)
+expect(crawlerCover.destroyed, true, "disabling plugin clears crawler cover")
+Settings.update("enabled", true)
+frame()
+crawlerCover = components[#components]
 Plugin.Shutdown()
+expect(crawlerCover.destroyed, true, "shutdown clears crawler cover")
 expect(newest.destroyed, true, "shutdown destroys current interface label")
 expect(next(Event.Draw.callbacks), nil, "shutdown unsubscribes")
 Plugin.Shutdown()
-print("Arachnophobia: " .. checks .. " checks passed")
+Settings.update("enabled", false)
+Settings.update("coverAraxxorFight", true)
+Settings.update("coverUICrawlers", false)
+Settings.update("showNameBackground", false)
+Settings.update("customNPCs", "Guard")
+Settings.update("acidicColour", 0x112233FF)
+Settings.update("nameTextColour", 0x445566FF)
+local resetNotifications = {}
+Settings.Subscribe("reset-test", function(name, value) resetNotifications[name] = value end)
+Settings.ResetDefaults()
+local resetSettings = dofile("settings.lua")
+expect(resetSettings.get("enabled"), true, "reset restores enabled default")
+expect(resetSettings.get("coverAraxxorFight"), false, "reset leaves fight coverage off")
+expect(resetSettings.get("coverUICrawlers"), true, "reset restores UI crawler coverage")
+expect(resetSettings.get("showNameBackground"), true, "reset restores name backgrounds")
+expect(resetSettings.get("customNPCs"), "", "reset clears additional NPCs")
+expect(resetSettings.get("acidicColour"), 0xFF0000FF, "reset restores special colour")
+expect(resetSettings.get("nameTextColour"), 0xFFFFFFFF, "reset restores name text colour")
+expect(resetNotifications.customNPCs, "", "reset notifies text field listeners")
+expect(resetNotifications.acidicColour, 0xFF0000FF, "reset notifies colour picker listeners")
+expect(resetNotifications.coverAraxxorFight, false, "reset notifies toggle listeners")
+Settings.Unsubscribe("reset-test")

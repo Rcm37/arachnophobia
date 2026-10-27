@@ -1,3 +1,4 @@
+local Settings = require("settings")
 local Labels = {}
 local entries = {}
 local parent, interfaceID
@@ -11,10 +12,10 @@ function Labels.Clear()
 end
 
 function Labels.BeginFrame()
-    local current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__ROOT)
+    local current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__PLUGIN_BUILD_LAYER_BOTTOM)
     if current == nil or current.width <= 0 or current.height <= 0
         or current.visibleGlobal == false then
-        current = ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__GAME_AREA)
+        current = nil
     end
     if current ~= parent then
         Labels.Clear()
@@ -31,7 +32,7 @@ function Labels.Draw(npc, bounds)
     ))
     if position == nil then return end
     -- Projections use screen coordinates; UI positions are relative to the
-    -- parent, which may be an inset game area rather than the full window.
+    -- plugin layer, which may be offset from the full window.
     local origin = parent.xyGlobal
     local x = position.x - (origin and origin.x or 0)
     local y = position.y - (origin and origin.y or 0)
@@ -47,14 +48,12 @@ function Labels.Draw(npc, bounds)
         local background = ui.Rectangle.new(root)
         background:SetSize(0, 0, 1, 1)
         background.fill = true
-        background.rgba = 0x202830FF
         background.alpha = 1
         background.clickthrough = true
         background.enabled = false
         local text = ui.Text.new(root)
         text:SetSize(0, 0, 1, 1)
         text.font = id.Font.MUSEO_SANS_15PT_REGULAR
-        text.rgba = 0xFFFFFFFF
         text.alpha = 1
         text.isShadowed = true
         text.alignHorizontal = ui.AlignMode.CENTRE
@@ -62,9 +61,12 @@ function Labels.Draw(npc, bounds)
         text.maxLines = 1
         text.clickthrough = true
         text.enabled = false
-        entry = { root = root, text = text }
+        entry = { root = root, text = text, background = background }
         entries[npc.uid] = entry
     end
+    entry.background.hidden = not Settings.get("showNameBackground")
+    entry.background.rgba = Settings.get("nameBackgroundColour")
+    entry.text.rgba = Settings.get("nameTextColour")
     if entry.name ~= npc.displayName then
         entry.name = npc.displayName
         entry.text.content = npc.displayName
@@ -76,8 +78,8 @@ function Labels.Draw(npc, bounds)
         math.floor(math.max(0, math.min(x - width / 2, parent.width - width))),
         math.floor(math.max(0, math.min(y - HEIGHT, parent.height - HEIGHT)))
     )
-    -- Sending these to the back puts them behind the game-area component.
-    -- Bring them above the viewport; all children remain clickthrough.
+    -- Raise only our child within the bottom plugin layer, preserving the
+    -- client's ordering relative to built-in UI, just like crawler covers.
     entry.root:MoveToFront()
     entry.seen = true
 end
